@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/keyboard.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -133,12 +134,7 @@ class _HomeState extends State<Home> {
                 ),
               ),
             ),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                height: double.infinity,
-              ),
-            ),
+            Keyboard(this),
           ],
         ),
       ),
