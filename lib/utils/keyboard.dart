@@ -6,25 +6,78 @@ class Key extends StatelessWidget {
   var parent;
   Key(this.value, this.parent);
 
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () {},
-      child: value != "undo"
-          ? Text(
-              value,
-              style: TextStyle(color: Colors.white),
-            )
-          : Icon(Icons.arrow_back),
-      style: ButtonStyle(
-        shape: MaterialStateProperty.all(
-          RoundedRectangleBorder(
-            borderRadius: new BorderRadius.circular(16),
-          ),
+  Widget _button() {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Material(
+        borderRadius: BorderRadius.all(Radius.circular(100)), // Circular
+        color: Color(0xff636363),
+        child: CircleAvatar(
+          backgroundColor: Colors.transparent,
+          child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+            return InkWell(
+              // Ripple Effect
+              borderRadius: BorderRadius.all(Radius.circular(100)),
+              onTap: () {},
+              child: Container(
+                // For ripple area
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                alignment: Alignment.center,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 30.0,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
-        backgroundColor: MaterialStateProperty.all(Color(0xff636363)),
       ),
     );
+  }
+
+  Widget longButton() {
+    return Container(
+      margin: EdgeInsets.fromLTRB(8, 8, 8, 4),
+      decoration: BoxDecoration(
+        color: Color(0xff636363),
+        borderRadius: value == "undo" || value == "AC" || value == "0"
+            ? value == "undo"
+                ? BorderRadius.horizontal(
+                    left: Radius.circular(100),
+                    right: Radius.circular(100),
+                  )
+                : BorderRadius.vertical(
+                    top: Radius.circular(100), bottom: Radius.circular(100))
+            : null,
+      ),
+      child: TextButton(
+        onPressed: () {},
+        child: value == "undo"
+            ? Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+              )
+            : Text(
+                value,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30.0,
+                  fontWeight: FontWeight.w300,
+                ),
+              ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ["undo", "ac", "0"].contains(value) ? longButton() : _button();
   }
 }
 
@@ -46,70 +99,45 @@ class _KeyboardState extends State<Keyboard> {
   void initState() {
     super.initState();
     keys = [
-      Expanded(child: Key("7", parent)),
-      Expanded(child: Key("8", parent)),
-      Expanded(child: Key("9", parent)),
-      Expanded(child: Key("AC", parent)),
-      Expanded(child: Key("4", parent)),
-      Expanded(child: Key("5", parent)),
-      Expanded(child: Key("6", parent)),
-      Expanded(child: Key("1", parent)),
-      Expanded(child: Key("2", parent)),
-      Expanded(child: Key("3", parent)),
-      Expanded(child: Key("undo", parent)),
-      Expanded(child: Key("0", parent)),
-      Expanded(child: Key(".", parent))
+      Key("7", parent),
+      Key("8", parent),
+      Key("9", parent),
+      Key("AC", parent),
+      Key("4", parent),
+      Key("5", parent),
+      Key("6", parent),
+      Key("1", parent),
+      Key("2", parent),
+      Key("3", parent),
+      Key("undo", parent),
+      Key("0", parent),
+      Key(".", parent)
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
+      flex: 2,
       child: Container(
         width: double.infinity,
-        height: double.infinity,
+        height: 50,
         decoration: BoxDecoration(
           color: Color(0xff454748),
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(30),
+            topLeft: Radius.circular(30),
+          ),
         ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Row(
-                  children: [
-                    keys[0],
-                    keys[1],
-                    keys[2],
-                  ],
-                ),
-                Column(
-                  children: [
-                    Text("A"),
-                  ],
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                keys[4],
-                keys[5],
-                keys[6],
-              ],
-            ),
-            Row(
-              children: [
-                keys[7],
-                keys[8],
-                keys[9],
-              ],
-            ),
-            Row(
-              children: [
-                keys[11],
-                keys[12],
-              ],
-            ),
-          ],
+        child: StaggeredGridView.countBuilder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.all(8),
+          itemCount: keys.length,
+          crossAxisCount: 4,
+          itemBuilder: (context, index) => keys[index],
+          staggeredTileBuilder: (index) => StaggeredTile.count(
+              index == 11 ? 2 : 1, index == 3 || index == 10 ? 2 : 1),
         ),
       ),
     );
