@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 import 'dart:math';
 import '../utils/keyboard.dart';
+import 'number_select.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -9,24 +11,76 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  bool isHexa = false;
+  bool numberKeyboard = true;
   String firstNumber = "Decimal";
   String secondNumber = "Hexadecimal";
-  List<String> firstValue = [];
-  List<String> secondValue = [];
+  List<String> firstValue = ["0"];
+  List<String> secondValue = ["0"];
+  Map<String, dynamic> strBaseMap = {
+    "Decimal": "₍₁₀₎",
+    "Binary": "₍₂₎",
+    "Hexadecimal": "₍₁₆₎",
+    "Octal": "₍₈₎"
+  };
   var currFocus = "first";
+  Map<String, dynamic> numHexaMap = {
+    "10": "A",
+    "11": "B",
+    "12": "C",
+    "13": "D",
+    "14": "E",
+    "15": "F"
+  };
 
-  Widget numberSelector(String numberSystem) {
+  Map<String, dynamic> charHexaMap = {
+    "A": "10",
+    "B": "11",
+    "C": "12",
+    "D": "13",
+    "E": "14",
+    "F": "15"
+  };
+
+  void changeNumSystem(String newSystem, String numIndex) {
+    setState(() {
+      switch (numIndex) {
+        case "first":
+          firstNumber = newSystem;
+          firstValue = calculate(secondValue, secondNumber, firstNumber);
+          break;
+        case "second":
+          secondNumber = newSystem;
+          secondValue = calculate(firstValue, firstNumber, secondNumber);
+          break;
+      }
+    });
+  }
+
+  void goToSelection(String numIndex) async {
+    var result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NumberSystems(),
+      ),
+    );
+    if (result != null) {
+      changeNumSystem(result, numIndex);
+    }
+  }
+
+  Widget numberSelector(String numberSystem, String numIndex) {
     return Row(
       children: [
         Text(
-          numberSystem,
+          "$numberSystem ${strBaseMap[numberSystem]}",
           style: TextStyle(
             fontSize: 18,
             color: Color(0xffE5E5E5),
           ),
         ),
         IconButton(
-          onPressed: () {},
+          onPressed: () => goToSelection(numIndex),
           icon: Icon(
             Icons.arrow_drop_down,
             color: Color(0xffE5E5E5),
@@ -38,24 +92,27 @@ class _HomeState extends State<Home> {
 
   Widget textValue(List<String> value, String num) {
     String textValue = joinValue(value);
-    return RichText(
-      text: TextSpan(
-        text: textValue == "" ? "0" : textValue,
-        recognizer: TapGestureRecognizer()
-          ..onTap = () {
-            setState(() {
-              currFocus = num;
-            });
-          },
-        style: TextStyle(
-          fontSize: 36,
-          color: currFocus == num ? Color(0xff9AD5FF) : Colors.white,
-        ),
+    return SelectableText(
+      textValue,
+      onTap: () {
+        setState(() {
+          currFocus = num;
+          if ((currFocus == "first" && firstNumber == "Hexadecimal") ||
+              (currFocus == "second" && secondNumber == "Hexadecimal")) {
+            isHexa = true;
+          } else {
+            isHexa = false;
+          }
+        });
+      },
+      style: TextStyle(
+        fontSize: 28,
+        color: currFocus == num ? Color(0xff9AD5FF) : Colors.white,
       ),
     );
   }
 
-  String joinValue(List<String> value) {
+  String joinValue(dynamic value) {
     String result = "";
     for (int i = 0; i < value.length; i++) {
       result += value[i];
@@ -63,7 +120,7 @@ class _HomeState extends State<Home> {
     return result;
   }
 
-  List<String> wrapValue(String value) {
+  List<String> wrapValue(dynamic value) {
     List<String> result = [];
     for (int i = 0; i < value.length; i++) {
       result.add(value[i]);
@@ -71,71 +128,131 @@ class _HomeState extends State<Home> {
     return result;
   }
 
-  List<String> decimalToBinary(dynamic value) {
-    value = int.parse(joinValue(value));
+  List<String> countInteger(num value, int base) {
     List<String> result = [];
     num remainder = 0;
-    while (value >= 2) {
-      remainder = value % 2;
-      value = (value / 2).toInt();
+    while (value >= base) {
+      remainder = value % base;
+      value = value ~/ base;
       result.add(remainder.toString());
     }
-    result.add("1");
-    return List.from(result.reversed);
+    result.add(value.toString());
+    if (base == 16) {
+      result = hexaToNormal(result, true);
+    }
+    return result;
   }
 
-  List<String> decimalToHexa(dynamic value) {
-    value = int.parse(joinValue(value));
+  List<String> roundDecimal(List<String> value, int base, String nextVal) {
+    switch (base) {
+      case 2:
+        if (nextVal == "1") {
+          if (value[19] == "0") {
+            value[19] = "1";
+          } else {
+            List<String> copyResult = List.from(value);
+            for (int i = value.length - 2; i >= 0; i--) {
+              if (copyResult[i] == "1") {
+                value[i] = "0";
+              } else {
+                value[i] = "1";
+                break;
+              }
+            }
+          }
+        }
+        break;
+      case 16:
+        String lastVal = value[value.length - 1];
+        String newVal = lastVal;
+        if (lastVal == "9") {
+          newVal = "A";
+        } else if (numHexaMap.containsKey(lastVal)) {
+          String nextHex = lastVal == "F" ? "F" : numHexaMap[lastVal];
+          newVal = lastVal == "F"
+              ? "F"
+              : charHexaMap[(int.parse(nextHex) + 1).toString()];
+        }
+
+        value[value.length - 1] = newVal;
+        break;
+      case 8:
+        int lastVal = int.parse(value[value.length - 1]);
+        int intVal = int.parse(nextVal);
+        if (intVal > 4) {
+          String newVal = (value == 8 ? 8 : lastVal + 1).toString();
+          value[value.length - 1] = newVal;
+        }
+        break;
+    }
+    return value;
+  }
+
+  List<String> countDecimal(dynamic value, int base) {
+    value = double.parse("0.$value");
     List<String> result = [];
     num remainder = 0;
-    Map<int, dynamic> hexaValues = {
-      10: "A",
-      11: "B",
-      12: "C",
-      13: "D",
-      14: "E",
-      15: "F"
-    };
-    while (value >= 16) {
-      remainder = value % 16;
-      value = (value / 16).toInt();
-      if (hexaValues.containsKey(remainder)) {
-        result.add(hexaValues[remainder]);
+    String strRemainder = "";
+    String nextVal = "";
+    while (value != 0 && result.length <= 21) {
+      value = (value * base).toDouble();
+      remainder = value.toInt();
+      strRemainder = remainder.toString();
+      if (value % remainder == 0) {
+        result.add(value.toString());
+        break;
       } else {
-        result.add(remainder.toString());
+        if (remainder != 0) {
+          value = double.parse("0.${value.toString().split(".")[1]}");
+        }
+      }
+
+      if (result.length == 20) {
+        nextVal = strRemainder;
+        result = roundDecimal(result, base, nextVal);
+        break;
+      } else {
+        if (numHexaMap.containsKey(strRemainder)) {
+          result.add(numHexaMap[strRemainder]);
+        } else {
+          result.add(strRemainder);
+        }
       }
     }
-    result.add(value.toString());
-    return List.from(result.reversed);
+
+    return result.isEmpty ? ["0"] : result;
   }
 
-  List<String> decimalToOctal(dynamic value) {
-    value = int.parse(joinValue(value));
-    List<String> result = [];
-    num remainder = 0;
-    while (value >= 8) {
-      remainder = value % 8;
-      value = (value / 8).toInt();
-      result.add(remainder.toString());
+  List<String> decimalToOther(dynamic value, int base) {
+    dynamic integer;
+    dynamic decimal;
+    if (value.contains(".")) {
+      value = joinValue(value).split(".");
+      integer = int.parse(value[0]);
+      decimal = value[1];
     }
-    result.add(value.toString());
-    return List.from(result.reversed);
+    value = int.parse(joinValue(value));
+    List<String> result = countInteger(integer != null ? integer : value, base);
+    if (decimal != null) {
+      result = List.from(result.reversed);
+      result.add(".");
+      result.addAll(countDecimal(decimal, base));
+    }
+    return decimal != null ? result : List.from(result.reversed);
   }
 
   List<String> hexaToNormal(List<String> value, [reverse = false]) {
-    List<String> alphabetVal = ["A", "B", "C", "D", "E", "F"];
-    List<String> numVal = ["10", "11", "12", "13", "14", "15"];
     List<String> newValue = [];
     for (String val in value) {
       if (reverse) {
-        if (numVal.contains(val)) {
-          newValue.add(alphabetVal[numVal.indexOf(val)]);
+        if (numHexaMap.containsKey(val)) {
+          newValue.add(numHexaMap[val]);
         } else {
           newValue.add(val);
         }
       } else {
-        if (alphabetVal.contains(val)) {
-          newValue.add(numVal[alphabetVal.indexOf(val)]);
+        if (charHexaMap.containsKey(val)) {
+          newValue.add(charHexaMap[val]);
         } else {
           newValue.add(val);
         }
@@ -144,46 +261,108 @@ class _HomeState extends State<Home> {
     return newValue;
   }
 
-  List<List<String>> groupBy(List<String> values, int n) {
-    List<List<String>> result = [];
-    values = List.from(values.reversed);
-    for (int i = 0; i < values.length; i += n) {
-      List<String> newValues =
-          values.sublist(i, i + n > values.length ? values.length : i + n);
-      result.add(newValues);
+  List<dynamic> groupBy(dynamic values, int n,
+      [isDecimal = false, reversed = true]) {
+    List<dynamic> result = [];
+    if (isDecimal) {
+      values = joinValue(values).split(".");
+      dynamic integers = wrapValue(values[0]);
+      dynamic decimals = wrapValue(values[1]);
+
+      integers = groupBy(integers, n, false);
+      decimals = groupBy(decimals, n, false, false);
+      result.addAll(integers);
+      result.add(["."]);
+      for (int i = 0; i < decimals.length; i++) {
+        var value = decimals[i];
+        if (value.length < n) {
+          for (int _ = 0; _ < n - value.length + 1; _++) {
+            value.add("0");
+          }
+        }
+      }
+      result.addAll(decimals);
+      return result;
+    } else {
+      values = reversed ? List.from(values.reversed) : values;
+      for (int i = 0; i < values.length; i += n) {
+        dynamic newValues =
+            values.sublist(i, i + n > values.length ? values.length : i + n);
+        result.add(newValues);
+      }
+      return reversed ? List.from(result.reversed) : result;
     }
-    return List.from(result.reversed);
   }
 
-  List<String> toDecimal(List<String> value, int base,
-      [bool binaryToOther = false, dynamic baseTarget = false]) {
+  dynamic calculateDecimal(dynamic value, int base, bool isDecimal,
+      [bool reversed = false]) {
     num result = 0;
-    value = binaryToOther ? value : List.from(value.reversed);
-    if (base == 16) {
-      value = hexaToNormal(value);
+    if (isDecimal) {
+      for (int i = 0; i < value.length; i++) {
+        result += double.parse(value[i]) * pow(base, -(i + 1));
+      }
+      return result;
+    } else {
+      value = reversed ? List.from(value.reversed) : value;
+      for (int i = 0; i < value.length; i++) {
+        if (charHexaMap.containsKey(value[i])) {
+          value[i] = charHexaMap[value[i]];
+        }
+        result += int.parse(value[i]) * pow(base, i);
+      }
+      return result.toInt();
     }
-    for (int i = 0; i < value.length; i++) {
-      result += double.parse(value[i]) * pow(base, i);
+  }
+
+  List<String> toDecimal(dynamic value, int base,
+      [bool binaryToOther = false,
+      dynamic baseTarget = false,
+      reversed = false]) {
+    dynamic result = 0;
+    if (value.contains(".")) {
+      value = joinValue(value).split(".");
+      List<String> integers = wrapValue(value[0]);
+      List<String> decimals = wrapValue(value[1]);
+      if (base == 16) {
+        integers = hexaToNormal(integers);
+        decimals = hexaToNormal(decimals);
+      }
+      result += calculateDecimal(
+          binaryToOther ? integers : List.from(integers.reversed), base, false);
+      result += calculateDecimal(decimals, base, true);
+    } else {
+      value = binaryToOther ? value : List.from(value.reversed);
+      result += calculateDecimal(value, base, false, reversed);
     }
+    String resultStr = result.toString();
     return binaryToOther && baseTarget == 16
-        ? hexaToNormal([result.toString()], true)
-        : wrapValue(result.toString());
+        ? hexaToNormal([resultStr], true)
+        : wrapValue(resultStr);
   }
 
   List<String> binaryToOther(List<String> value, int base) {
     List groupedValue = [];
     List<String> result = [];
+    bool isDecimal = value.contains(".");
+    bool pastDot = false;
     switch (base) {
       case 16:
-        groupedValue = groupBy(value, 4);
+        groupedValue = groupBy(value, 4, isDecimal);
         break;
       case 8:
-        groupedValue = groupBy(value, 3);
+        groupedValue = groupBy(value, 3, isDecimal);
+        break;
     }
     for (var value in groupedValue) {
-      List<String> newValue = toDecimal(value, 2, true, 16);
-      for (String val in newValue) {
-        result.add(val);
+      if (value.contains(".")) {
+        result.add(".");
+        pastDot = true;
+      } else {
+        List<String> newValue = toDecimal(value, 2, true, base, pastDot);
+
+        for (String val in newValue) {
+          result.add(val);
+        }
       }
     }
     return result;
@@ -230,8 +409,6 @@ class _HomeState extends State<Home> {
     List<int> nums = [];
 
     switch (base) {
-      case 2:
-        break;
       case 16:
         values = hexaToNormal(values);
         zeroGroups = ["0", "0", "0", "0"];
@@ -243,9 +420,13 @@ class _HomeState extends State<Home> {
         break;
     }
     for (String value in values) {
-      List<String> binaryVal = findSubset(value, zeroGroups, nums);
-      for (String binVal in binaryVal) {
-        result.add(binVal);
+      if (value == ".") {
+        result.add(value);
+      } else {
+        List<String> binaryVal = findSubset(value, zeroGroups, nums);
+        for (String binVal in binaryVal) {
+          result.add(binVal);
+        }
       }
     }
     int indexOf = result.indexOf("1");
@@ -270,13 +451,16 @@ class _HomeState extends State<Home> {
       case "Decimal":
         switch (numSystemTarget) {
           case "Binary":
-            result = decimalToBinary(valueTarget);
+            result = decimalToOther(valueTarget, 2);
             break;
           case "Hexadecimal":
-            result = decimalToHexa(valueTarget);
+            result = decimalToOther(valueTarget, 16);
             break;
           case "Octal":
-            result = decimalToOctal(valueTarget);
+            result = decimalToOther(valueTarget, 8);
+            break;
+          default:
+            result = valueTarget;
             break;
         }
         break;
@@ -291,6 +475,9 @@ class _HomeState extends State<Home> {
           case "Octal":
             result = binaryToOther(valueTarget, 8);
             break;
+          default:
+            result = valueTarget;
+            break;
         }
         break;
       case "Hexadecimal":
@@ -303,6 +490,9 @@ class _HomeState extends State<Home> {
             break;
           case "Octal":
             result = hexaToOctal(valueTarget);
+            break;
+          default:
+            result = valueTarget;
             break;
         }
         break;
@@ -317,8 +507,10 @@ class _HomeState extends State<Home> {
           case "Hexadecimal":
             result = octalToHexa(valueTarget);
             break;
+          default:
+            result = valueTarget;
+            break;
         }
-        break;
     }
     return result;
   }
@@ -328,15 +520,14 @@ class _HomeState extends State<Home> {
     var numSystem;
     var numSystemTarget;
     if (currFocus == "first") {
-      valueTarget = secondValue;
-      numSystem = secondNumber;
-      numSystemTarget = firstNumber;
-    } else {
       valueTarget = firstValue;
       numSystem = firstNumber;
       numSystemTarget = secondNumber;
+    } else {
+      valueTarget = secondValue;
+      numSystem = secondNumber;
+      numSystemTarget = firstNumber;
     }
-
     return calculate(valueTarget, numSystem, numSystemTarget);
   }
 
@@ -364,7 +555,7 @@ class _HomeState extends State<Home> {
         child: Column(
           children: <Widget>[
             Expanded(
-              flex: 1,
+              flex: 3,
               child: Container(
                 width: double.infinity,
                 height: double.infinity,
@@ -382,7 +573,7 @@ class _HomeState extends State<Home> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 SizedBox(width: 15),
-                                numberSelector(firstNumber),
+                                numberSelector(firstNumber, "first"),
                               ],
                             ),
                             Row(
@@ -410,18 +601,111 @@ class _HomeState extends State<Home> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 SizedBox(width: 15),
-                                numberSelector(secondNumber),
+                                numberSelector(secondNumber, "second"),
                               ],
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                textValue(firstValue, "second"),
+                                textValue(secondValue, "second"),
                                 SizedBox(width: 10),
                               ],
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color(0xff454748),
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(30),
+                    topLeft: Radius.circular(30),
+                  ),
+                ),
+                width: double.infinity,
+                height: double.infinity,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              style: ButtonStyle(
+                                shape: MaterialStateProperty.all(
+                                  RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(30),
+                                  )),
+                                ),
+                                backgroundColor: MaterialStateProperty.all(
+                                    Colors.transparent),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  numberKeyboard = true;
+                                });
+                              },
+                              child: Text(
+                                "123",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  color: Color(
+                                      numberKeyboard ? 0xffD9D9D9 : 0xffA4A4A4),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    VerticalDivider(
+                      thickness: 1,
+                      color: Color(0xff242525).withOpacity(0.3),
+                    ),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              style: ButtonStyle(
+                                shape: MaterialStateProperty.all(
+                                  RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.only(
+                                    topRight: Radius.circular(30),
+                                  )),
+                                ),
+                                backgroundColor: MaterialStateProperty.all(
+                                    Colors.transparent),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  numberKeyboard = false;
+                                });
+                              },
+                              child: Text(
+                                "abc",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  color: Color(
+                                      numberKeyboard ? 0xffA4A4A4 : 0xffD9D9D9),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
