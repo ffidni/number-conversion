@@ -37,6 +37,7 @@ class _NumberSystemsState extends State<NumberSystems> {
     return Scaffold(
       backgroundColor: Color(0xff22333B),
       appBar: AppBar(
+        brightness: Brightness.dark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(15),

@@ -1,8 +1,7 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:auto_size_text/auto_size_text.dart';
 import 'dart:math';
 import '../utils/keyboard.dart';
+import '../utils/pageroute.dart';
 import 'number_select.dart';
 
 class Home extends StatefulWidget {
@@ -60,8 +59,9 @@ class _HomeState extends State<Home> {
   void goToSelection(String numIndex) async {
     var result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => NumberSystems(),
+      CustomPageRoute(
+        child: NumberSystems(),
+        direction: AxisDirection.down,
       ),
     );
     if (result != null) {
@@ -536,6 +536,7 @@ class _HomeState extends State<Home> {
     return Scaffold(
       backgroundColor: Color(0xff22333B),
       appBar: AppBar(
+        brightness: Brightness.dark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(15),
